@@ -117,16 +117,9 @@ const Templates = () => {
                   <CardDescription>{template.description}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-sm text-muted-foreground mb-4">
+                  <div className="text-sm text-muted-foreground">
                     {template.template_data.questions.length} questions included
                   </div>
-                  <Button
-                    onClick={() => useTemplate(template)}
-                    className="w-full"
-                    variant="outline"
-                  >
-                    Use Template
-                  </Button>
                 </CardContent>
               </Card>
             ))}
