@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, ArrowLeft, Save } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus, Trash2, ArrowLeft, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface Question {
@@ -27,6 +28,9 @@ const CreateSurvey = () => {
     { type: "multiple_choice", text: "", options: [""], required: true, order_index: 0 },
   ]);
   const [saving, setSaving] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const addQuestion = () => {
     setQuestions([
@@ -61,6 +65,38 @@ const CreateSurvey = () => {
     const updated = [...questions];
     updated[questionIndex].options = updated[questionIndex].options!.filter((_, i) => i !== optionIndex);
     setQuestions(updated);
+  };
+
+  const generateWithAI = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error("Please enter a prompt");
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-survey", {
+        body: { prompt: aiPrompt },
+      });
+
+      if (error) throw error;
+
+      if (data?.questions) {
+        const generatedQuestions = data.questions.map((q: any, index: number) => ({
+          ...q,
+          order_index: index,
+        }));
+        setQuestions(generatedQuestions);
+        toast.success("Questions generated successfully!");
+        setIsAiDialogOpen(false);
+        setAiPrompt("");
+      }
+    } catch (error: any) {
+      console.error("AI generation error:", error);
+      toast.error(error.message || "Failed to generate questions");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const saveSurvey = async (status: "draft" | "published") => {
@@ -119,8 +155,48 @@ const CreateSurvey = () => {
 
         <Card className="shadow-medium mb-6">
           <CardHeader>
-            <CardTitle className="text-2xl">Create New Survey</CardTitle>
-            <CardDescription>Build your employee feedback survey</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl">Create New Survey</CardTitle>
+                <CardDescription>Build your employee feedback survey</CardDescription>
+              </div>
+              <Dialog open={isAiDialogOpen} onOpenChange={setIsAiDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Create with AI
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Generate Survey with AI</DialogTitle>
+                    <DialogDescription>
+                      Describe what kind of survey you want to create and AI will generate questions for you.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div>
+                      <Label htmlFor="ai-prompt">Survey Description</Label>
+                      <Textarea
+                        id="ai-prompt"
+                        placeholder="e.g., Create a survey about employee satisfaction with work-life balance and remote work policies"
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        className="mt-2"
+                        rows={4}
+                      />
+                    </div>
+                    <Button
+                      onClick={generateWithAI}
+                      disabled={isGenerating}
+                      className="w-full"
+                    >
+                      {isGenerating ? "Generating..." : "Generate Questions"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
